@@ -49,6 +49,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
       - name: Ensure state file exists
+        id: check_state
         run: |
           if [ ! -f outage_state.json ]; then
             echo "No previous state found, creating an empty file."
