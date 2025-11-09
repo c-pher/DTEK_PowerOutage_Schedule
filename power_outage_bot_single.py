@@ -180,7 +180,7 @@ class PowerOutageMonitor:
             start_total = start_h + start_m / 60
             end_total = end_h + end_m / 60
 
-            # Handle case where end time is 24:00 (midnight)
+            # Handle case where the end time is 24:00 (midnight)
             if end_h == 24:
                 end_total = 24
 
@@ -201,7 +201,7 @@ class PowerOutageMonitor:
                    It can be fractional or an integer.
 
         Returns:
-            A string formatted to represent the duration in Ukrainian language.
+            A string formatted to represent the duration in the Ukrainian language.
             For instance, durations can be expressed as "30 хв" for 0.5 hours,
             "1 год" for 1 hour, "X год Y хв" for mixed hours and minutes, or only
             hours or minutes if applicable.
@@ -251,9 +251,9 @@ class PowerOutageMonitor:
         i = 0
 
         while i < len(outages):
-            # Extract start time, end time from current period
+            # Extract start time, end time from the current period
             current = outages[i]
-            # Remove duration part to work with time range only
+            # Remove the duration part to work with time range only
 
             time_part = current.split(' (')[0]
             start_time, end_time = time_part.split('-')
@@ -265,7 +265,7 @@ class PowerOutageMonitor:
                 next_time_part = next_period.split(' (')[0]
                 next_start, next_end = next_time_part.split('-')
 
-                # Check if end of current equals start of next
+                # Check if the end of current equals start of next
                 if end_time == next_start:
                     # Merge: extend end_time
                     end_time = next_end
@@ -278,7 +278,7 @@ class PowerOutageMonitor:
             duration = self.calculate_duration(merged_range)
             merged.append(f'{merged_range} ({self.format_duration(duration)})')
 
-            # Move to next unmerged period
+            # Move to the next unmerged period
             i = j
 
         return merged
@@ -453,19 +453,11 @@ class PowerOutageMonitor:
         if necessary. The function gathers schedule data, identifies outages for today and tomorrow, and
         determines any changes between states, optionally forced by an environment variable. Updates are
         sent based on the detected changes or initial conditions, and the current state is saved.
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
         """
 
         logger.info('Checking for updates...')
 
-        # Check for force send flag
+        # Check for force send the flag
         force_send = os.getenv('FORCE_SEND', 'false').lower() in ('true', '1', 'yes')
         if force_send:
             logger.info('⚠️ FORCE_SEND is enabled - will send message regardless of changes')
@@ -514,7 +506,7 @@ class PowerOutageMonitor:
         today_date = self.get_date_string(today_timestamp)
         tomorrow_date = self.get_date_string(tomorrow_timestamp) if tomorrow_timestamp else None
 
-        # Create current state
+        # Create the current state
         current_state = {
             'today': {
                 'date': today_date,
@@ -560,7 +552,7 @@ class PowerOutageMonitor:
                 has_changes = True
                 logger.info('New day detected')
 
-        # Send notification if there are changes
+        # Send a notification if there are changes
         if has_changes:
             message = self.format_message(
                 today_outages,
