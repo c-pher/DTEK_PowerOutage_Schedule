@@ -1,0 +1,81 @@
+name: Check Power Outages
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # Run every 15 minutes
+  workflow_dispatch:
+    inputs:
+      force_send:
+        description: 'Force send message (ignore changes check)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Download previous state
+        run: |
+          echo "Trying to download previous artifact..."
+          if gh run download --name outage-state --dir . 2>/dev/null; then
+            echo "Previous artifact downloaded."
+          else
+            echo "No previous artifact found. Continuing without it."
+          fi
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Ensure state file exists
+        run: |
+          if [ ! -f outage_state.json ]; then
+            echo "No previous state found, creating an empty file."
+            echo '{}' > outage_state.json
+          fi
+
+      - name: Run bot
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ vars.TELEGRAM_CHANNEL_ID }}
+          GROUP_NUMBER: ${{ vars.GROUP_NUMBER }}
+          FORCE_SEND: ${{ github.event.inputs.force_send || 'false' }}
+        run: |
+          echo "Running with FORCE_SEND=$FORCE_SEND"
+          python power_outage_bot_single.py
+          echo "Bot run completed at $(date)"
+
+      - name: Upload updated state
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: outage-state
+          path: outage_state.json
+          retention-days: 3
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Group: ${{ secrets.GROUP_NUMBER }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Time: $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "- State existed: ${{ steps.check_state.outputs.state_exists }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Force send: ${{ github.event.inputs.force_send || 'false' }}" >> $GITHUB_STEP_SUMMARY
