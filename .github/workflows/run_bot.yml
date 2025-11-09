@@ -53,6 +53,9 @@ jobs:
           if [ ! -f outage_state.json ]; then
             echo "No previous state found, creating an empty file."
             echo '{}' > outage_state.json
+            echo "state_exists=false" >> $GITHUB_OUTPUT
+          else
+            echo "state_exists=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Run bot
@@ -78,7 +81,7 @@ jobs:
         if: always()
         run: |
           echo "### Check Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- Group: ${{ secrets.GROUP_NUMBER }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Group: ${{ vars.GROUP_NUMBER }}" >> $GITHUB_STEP_SUMMARY
           echo "- Time: $(date)" >> $GITHUB_STEP_SUMMARY
           echo "- State existed: ${{ steps.check_state.outputs.state_exists }}" >> $GITHUB_STEP_SUMMARY
           echo "- Force send: ${{ github.event.inputs.force_send || 'false' }}" >> $GITHUB_STEP_SUMMARY
