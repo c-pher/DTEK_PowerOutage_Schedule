@@ -5,17 +5,17 @@ on:
 #    branches:
 #      - master
   schedule:
-    - cron: '*/15 * * * *'  # Run every 15 minutes
+    - cron: "*/15 * * * *"  # Run every 15 minutes
   workflow_dispatch:
     inputs:
       force_send:
-        description: 'Force send message (ignore changes check)'
+        description: "Force send message (ignore changes check)"
         required: false
-        default: 'false'
+        default: "false"
         type: choice
         options:
-          - 'false'
-          - 'true'
+          - "false"
+          - "true"
 
 jobs:
   check:
