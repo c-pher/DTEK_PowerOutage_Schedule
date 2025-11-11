@@ -545,7 +545,7 @@ class PowerOutageMonitor:
             if tomorrow_outages is not None:
                 if prev_state.get('tomorrow', {}).get('outages') != tomorrow_outages:
                     has_changes = True
-                    logger.info("Changes detected in tomorrow's schedule")
+                    logger.info('Changes detected in tomorrow\'s schedule')
 
             # Check if the date changed (new day)
             if prev_state.get('today', {}).get('date') != today_date:
@@ -567,6 +567,7 @@ class PowerOutageMonitor:
             logger.info('No changes detected')
 
         # Save the current state
+        logger.debug(f'Current state: {current_state}')
         self.save_state(current_state)
 
 
