@@ -21,8 +21,15 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      TZ: "Europe/Kiev"
 
     steps:
+      - name: Show date
+        run: |
+          echo "Current TZ: $TZ"
+          date
+
       - name: Checkout code
         uses: actions/checkout@v4
 
