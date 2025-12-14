@@ -7,13 +7,14 @@ Monitors power outage schedules and posts updates to a Telegram channel
 """
 
 import asyncio
-import aiohttp
 import json
 import os
 import sys
 import time
 from datetime import datetime
 from typing import Optional, Dict, List
+
+import aiohttp
 from loguru import logger
 from telegram import Bot
 from telegram.error import TelegramError
@@ -88,6 +89,7 @@ class PowerOutageMonitor:
                         # Ignore content type check for GitHub raw URLs.
                         # Otherwise, use .text() + json.loads(text) instead of .json()
                         json_data = await response.json(content_type=None)
+                        logger.debug(f'Data fetched successfully: {json_data}')
                         return json_data
                     else:
                         logger.error(f'Failed to fetch data: HTTP {response.status}')
@@ -371,18 +373,16 @@ class PowerOutageMonitor:
         """
 
         emoji = '🔄' if is_update else '⚡'
-        title = 'ОНОВЛЕННЯ графіка відключень' if is_update else 'Графік відключень'
-        msg = f'{emoji} <b>{title}</b>\n'
-        msg += f'🕐 Оновлено: {last_updated}\n\n'
+        title = f'ОНОВЛЕННЯ графіка відключень (від {last_updated})' if is_update else 'Графік відключень'
+        msg = f'{emoji} <b>{title}</b>\n\n'
 
         # Today's schedule
         msg += f'<b>📅 Сьогодні ({today_date}):</b>\n'
         if today_outages:
-            msg += '🔴 Відключення:\n'
             for period in today_outages:
-                msg += f'<code>{period}</code>\n'
+                msg += f'🪫<code>{period}</code>\n'
         else:
-            msg += '✅ Відключення не заплановані\n'
+            msg += '🟢 Відключення не заплановані\n'
 
         # Tomorrow's schedule
         if tomorrow_outages is not None:
@@ -390,11 +390,10 @@ class PowerOutageMonitor:
             if tomorrow_outages:
                 msg += '🔴 Відключення:\n'
                 for period in tomorrow_outages:
-                    msg += f'<code>{period}</code>\n'
+                    msg += f'🪫 <code>{period}</code>\n'
             else:
-                msg += '✅ Відключення не заплановані\n'
+                msg += '🟢 Відключення не заплановані\n'
 
-        msg += '\n<i>Джерело: ДТЕК</i>'
         return msg
 
     async def send_message(self, message: str):
