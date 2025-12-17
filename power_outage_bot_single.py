@@ -158,6 +158,67 @@ class PowerOutageMonitor:
         except Exception as err:
             logger.error(f'Error saving state: {err}')
 
+    def parse_schedule(self, hours_data: Dict[str, str]) -> List[str]:
+        """
+        Parses the given schedule data to identify time intervals during which outages occur.
+        This method processes the input dictionary of hourly statuses, determines outage
+        intervals, their durations, and formats them into human-readable strings. It also
+        merges continuous periods of outages to simplify reporting.
+
+        Parameters:
+            hours_data: Dict[str, str]
+                A dictionary representing the hourly schedule data where keys are hour
+                numbers as strings (1 to 24), and values indicate the status for the
+                corresponding hour. The possible values for the statuses are:
+                - 'yes': Indicates no outage for the hour.
+                - 'no': Indicates an outage for the entire hour.
+                - 'first': Indicates an outage for the first half of the hour
+                  (0 to 30 minutes past the hour).
+                - 'second': Indicates an outage for the second half of the hour
+                  (30 to 60 minutes past the hour).
+
+        Returns:
+            List[str]: A list of strings where each string represents a time interval
+            with its corresponding outage duration. The intervals are formatted as
+            '[start_time]-[end_time] ([duration])'.
+        """
+
+        if not hours_data:
+            return []
+
+        outages = []
+        i = 1
+        while i <= 24:
+            status = hours_data.get(str(i), 'yes')
+            match status:
+                case 'no':
+                    # Find continuous 'no' periods
+                    # Hour i means period (i-1):00 to i:00
+                    start = i - 1
+                    while i <= 24 and hours_data.get(str(i), 'yes') == 'no':
+                        i += 1
+                    end = i - 1
+                    time_range = f'{start:02d}:00-{end:02d}:00'
+                    duration = self.calculate_duration(time_range)
+                    outages.append(f'{time_range} ({self.format_duration(duration)})')
+                case 'first':
+                    # First half: (i-1):00 to (i-1):30
+                    time_range = f'{i - 1:02d}:00-{i - 1:02d}:30'
+                    duration = self.calculate_duration(time_range)
+                    outages.append(f'{time_range} ({self.format_duration(duration)})')
+                    i += 1
+                case 'second':
+                    # Second half: (i-1):30 to i:00
+                    time_range = f'{i - 1:02d}:30-{i:02d}:00'
+                    duration = self.calculate_duration(time_range)
+                    outages.append(f'{time_range} ({self.format_duration(duration)})')
+                    i += 1
+                case _:
+                    i += 1
+
+        # Merge continuous periods
+        return self.merge_continuous_periods(outages)
+
     @staticmethod
     def calculate_duration(time_range: str) -> float:
         """
@@ -190,6 +251,25 @@ class PowerOutageMonitor:
             return duration
         except:
             return 0
+
+    def calculate_total_duration(self, outages: List[str]) -> float:
+        """
+        Calculates the total duration of all outage periods.
+
+        Parameters:
+            outages: List of outage period strings in format 'HH:MM-HH:MM (duration)'.
+
+        Returns:
+            float: Total duration in hours.
+        """
+
+        total = 0.0
+        for outage in outages:
+            # Extract time range part (before the duration in parentheses)
+            time_part = outage.split(' (')[0]
+            duration = self.calculate_duration(time_part)
+            total += duration
+        return total
 
     @staticmethod
     def format_duration(hours: float) -> str:
@@ -286,69 +366,7 @@ class PowerOutageMonitor:
 
         return merged
 
-    def parse_schedule(self, hours_data: Dict[str, str]) -> List[str]:
-        """
-        Parses the given schedule data to identify time intervals during which outages occur.
-        This method processes the input dictionary of hourly statuses, determines outage
-        intervals, their durations, and formats them into human-readable strings. It also
-        merges continuous periods of outages to simplify reporting.
-
-        Parameters:
-            hours_data: Dict[str, str]
-                A dictionary representing the hourly schedule data where keys are hour
-                numbers as strings (1 to 24), and values indicate the status for the
-                corresponding hour. The possible values for the statuses are:
-                - 'yes': Indicates no outage for the hour.
-                - 'no': Indicates an outage for the entire hour.
-                - 'first': Indicates an outage for the first half of the hour
-                  (0 to 30 minutes past the hour).
-                - 'second': Indicates an outage for the second half of the hour
-                  (30 to 60 minutes past the hour).
-
-        Returns:
-            List[str]: A list of strings where each string represents a time interval
-            with its corresponding outage duration. The intervals are formatted as
-            '[start_time]-[end_time] ([duration])'.
-        """
-
-        if not hours_data:
-            return []
-
-        outages = []
-        i = 1
-        while i <= 24:
-            status = hours_data.get(str(i), 'yes')
-            match status:
-                case 'no':
-                    # Find continuous 'no' periods
-                    # Hour i means period (i-1):00 to i:00
-                    start = i - 1
-                    while i <= 24 and hours_data.get(str(i), 'yes') == 'no':
-                        i += 1
-                    end = i - 1
-                    time_range = f'{start:02d}:00-{end:02d}:00'
-                    duration = self.calculate_duration(time_range)
-                    outages.append(f'{time_range} ({self.format_duration(duration)})')
-                case 'first':
-                    # First half: (i-1):00 to (i-1):30
-                    time_range = f'{i - 1:02d}:00-{i - 1:02d}:30'
-                    duration = self.calculate_duration(time_range)
-                    outages.append(f'{time_range} ({self.format_duration(duration)})')
-                    i += 1
-                case 'second':
-                    # Second half: (i-1):30 to i:00
-                    time_range = f'{i - 1:02d}:30-{i:02d}:00'
-                    duration = self.calculate_duration(time_range)
-                    outages.append(f'{time_range} ({self.format_duration(duration)})')
-                    i += 1
-                case _:
-                    i += 1
-
-        # Merge continuous periods
-        return self.merge_continuous_periods(outages)
-
-    @staticmethod
-    def format_message(today_outages: List[str], tomorrow_outages: Optional[List[str]],
+    def format_message(self, today_outages: List[str], tomorrow_outages: Optional[List[str]],
                        today_date: str, tomorrow_date: str = None,
                        last_updated: str = None, is_update: bool = False) -> str:
         """
@@ -382,6 +400,8 @@ class PowerOutageMonitor:
         if today_outages:
             for period in today_outages:
                 msg += f'🪫<code>{period}</code>\n'
+            total_today = self.calculate_total_duration(today_outages)
+            msg += f'⌛️ <code>Всього: {self.format_duration(total_today)}</code>\n'
         else:
             msg += '🟢 Відключення не заплановані\n'
 
@@ -392,10 +412,12 @@ class PowerOutageMonitor:
                 msg += '🔴 Відключення:\n'
                 for period in tomorrow_outages:
                     msg += f'🪫 <code>{period}</code>\n'
+                total_tomorrow = self.calculate_total_duration(tomorrow_outages)
+                msg += f'⌛️ <code>Всього: {self.format_duration(total_tomorrow)}</code>\n'
             else:
                 msg += '🟢 Відключення не заплановані\n'
 
-        return msg
+            return msg
 
     async def send_message(self, message: str):
         """
