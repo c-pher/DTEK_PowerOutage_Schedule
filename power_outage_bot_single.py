@@ -209,19 +209,20 @@ class PowerOutageMonitor:
             hours or minutes if applicable.
         """
 
-        if hours == 0.5:
-            return '30 хв'
-        elif hours == 1:
-            return '1 год'
-        elif hours < 1:
-            minutes = int(hours * 60)
-            return f'{minutes} хв'
-        elif hours == int(hours):
-            return f'{int(hours)} год'
-        else:
-            whole_hours = int(hours)
-            minutes = int((hours - whole_hours) * 60)
-            return f'{whole_hours} год {minutes} хв'
+        match (hours == 0.5, hours == 1, hours < 1, hours == int(hours)):
+            case (True, _, _, _):
+                return '30 хв'
+            case (_, True, _, _):
+                return '1 год'
+            case (_, _, True, _):
+                minutes = int(hours * 60)
+                return f'{minutes} хв'
+            case (_, _, _, True):
+                return f'{int(hours)} год'
+            case _:
+                whole_hours = int(hours)
+                minutes = int((hours - whole_hours) * 60)
+                return f'{whole_hours} год {minutes} хв'
 
     # noinspection PyUnresolvedReferences
     def merge_continuous_periods(self, outages: List[str]) -> List[str]:
@@ -317,31 +318,31 @@ class PowerOutageMonitor:
         i = 1
         while i <= 24:
             status = hours_data.get(str(i), 'yes')
-
-            if status == 'no':
-                # Find continuous 'no' periods
-                # Hour i means period (i-1):00 to i:00
-                start = i - 1
-                while i <= 24 and hours_data.get(str(i), 'yes') == 'no':
+            match status:
+                case 'no':
+                    # Find continuous 'no' periods
+                    # Hour i means period (i-1):00 to i:00
+                    start = i - 1
+                    while i <= 24 and hours_data.get(str(i), 'yes') == 'no':
+                        i += 1
+                    end = i - 1
+                    time_range = f'{start:02d}:00-{end:02d}:00'
+                    duration = self.calculate_duration(time_range)
+                    outages.append(f'{time_range} ({self.format_duration(duration)})')
+                case 'first':
+                    # First half: (i-1):00 to (i-1):30
+                    time_range = f'{i - 1:02d}:00-{i - 1:02d}:30'
+                    duration = self.calculate_duration(time_range)
+                    outages.append(f'{time_range} ({self.format_duration(duration)})')
                     i += 1
-                end = i - 1
-                time_range = f'{start:02d}:00-{end:02d}:00'
-                duration = self.calculate_duration(time_range)
-                outages.append(f'{time_range} ({self.format_duration(duration)})')
-            elif status == 'first':
-                # First half: (i-1):00 to (i-1):30
-                time_range = f'{i - 1:02d}:00-{i - 1:02d}:30'
-                duration = self.calculate_duration(time_range)
-                outages.append(f'{time_range} ({self.format_duration(duration)})')
-                i += 1
-            elif status == 'second':
-                # Second half: (i-1):30 to i:00
-                time_range = f'{i - 1:02d}:30-{i:02d}:00'
-                duration = self.calculate_duration(time_range)
-                outages.append(f'{time_range} ({self.format_duration(duration)})')
-                i += 1
-            else:
-                i += 1
+                case 'second':
+                    # Second half: (i-1):30 to i:00
+                    time_range = f'{i - 1:02d}:30-{i:02d}:00'
+                    duration = self.calculate_duration(time_range)
+                    outages.append(f'{time_range} ({self.format_duration(duration)})')
+                    i += 1
+                case _:
+                    i += 1
 
         # Merge continuous periods
         return self.merge_continuous_periods(outages)
