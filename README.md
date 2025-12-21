@@ -2,7 +2,7 @@
 
 [![Check Power Outages](https://github.com/c-pher/DTEK_PowerOutage_Schedule/actions/workflows/run_bot.yml/badge.svg)](https://github.com/c-pher/DTEK_PowerOutage_Schedule/actions/workflows/run_bot.yml)
 
-![img_1.png](img_1.png)
+![img.png](img.png)
 
 Telegram bot that monitors power outage schedules in Kyiv and automatically posts updates to a channel when the schedule
 changes.
