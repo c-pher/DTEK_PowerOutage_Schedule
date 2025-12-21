@@ -398,7 +398,6 @@ class PowerOutageMonitor:
         if tomorrow_outages is not None:
             msg += f'\n<b>📅 Завтра ({tomorrow_date}):</b>\n'
             if tomorrow_outages:
-                msg += '🔴 Відключення:\n'
                 for period in tomorrow_outages:
                     msg += f'🪫 <code>{period}</code>\n'
                 total_tomorrow = self.calculate_total_duration(tomorrow_outages)
