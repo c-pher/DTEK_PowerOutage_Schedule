@@ -10,11 +10,12 @@ changes.
 ## Features
 
 - 📊 Monitors power outage schedules for specific groups (1.1 to 6.2)
-- 🔄 Automatically checks for updates every 15 minutes
-- 📢 Posts notifications to Telegram channel only when changes are detected
-- 💾 Stores previous state locally to detect changes
-- 📅 Shows schedules for both today and tomorrow
+- 🔄 Automatically checks for updates every 5 minutes (via GitHub Actions)
+- 📢 Posts notifications with status images to Telegram channel only when changes are detected
+- 💾 Stores previous state to detect changes
+- 📅 Shows schedules for both today and tomorrow with total outage duration
 - 🇺🇦 Ukrainian language interface
+- 🚀 Easy deployment using GitHub Actions
 
 ## Prerequisites
 
@@ -57,23 +58,48 @@ Set environment variables:
 export TELEGRAM_BOT_TOKEN='your_bot_token_here'
 export TELEGRAM_CHANNEL_ID='@yourchannel'  # or -1001234567890
 export GROUP_NUMBER='1.1'  # Your group number (1.1, 1.2, 2.1, ... 6.2)
+export FORCE_SEND='false'  # Set to 'true' to force send message regardless of changes
 
 # Windows (Command Prompt)
 set TELEGRAM_BOT_TOKEN=your_bot_token_here
 set TELEGRAM_CHANNEL_ID=@yourchannel
 set GROUP_NUMBER=1.1
+set FORCE_SEND=false
 
 # Windows (PowerShell)
 $env:TELEGRAM_BOT_TOKEN='your_bot_token_here'
 $env:TELEGRAM_CHANNEL_ID='@yourchannel'
 $env:GROUP_NUMBER='1.1'
+$env:FORCE_SEND='false'
 ```
 
 ### 5. Run the Bot
 
+For a single check:
+
+```bash
+python power_outage_bot_single.py
+```
+
+For continuous monitoring (runs in a loop):
 ```bash
 python power_outage_bot.py
 ```
+
+## GitHub Actions (Recommended)
+
+This repository is pre-configured to run via GitHub Actions every 5 minutes.
+
+1. Fork this repository.
+2. Go to `Settings > Secrets and variables > Actions`.
+3. Add the following **Secrets**:
+   - `TELEGRAM_BOT_TOKEN`: Your bot token from @BotFather.
+4. Add the following **Variables**:
+   - `TELEGRAM_CHANNEL_ID`: Your channel ID (e.g., `@yourchannel`).
+   - `GROUP_NUMBER`: Your group (e.g., `1.1`).
+5. Go to the `Actions` tab and enable workflows.
+
+The bot will automatically check for updates every 5 minutes and save the state between runs.
 
 ## Available Groups
 
@@ -88,27 +114,25 @@ The bot supports monitoring any of these groups:
 
 ## Message Format
 
-The bot sends messages in this format:
+The bot sends a status image with a caption in this format:
 
 ```
 ⚡ Графік відключень
-📍 Черга 1.1
-🕐 Оновлено: 06.11.2025 20:15
-
 📅 Сьогодні (06.11.2025):
-🔴 Відключення: 11:00-15:00, 21:00-24:00
+🪫 11:00-15:00 (4 год)
+🪫 21:00-24:00 (3 год)
+⌛️ Всього: 7 год
 
 📅 Завтра (07.11.2025):
-🔴 Відключення: 09:00-12:00
-
-Джерело: ДТЕК
+🪫 09:00-12:00 (3 год)
+⌛️ Всього: 3 год
 ```
 
 When schedule changes:
 
 ```
-🔄 ОНОВЛЕННЯ графіка відключень
-📍 Черга 1.1
+🔄 ОНОВЛЕННЯ графіка відключень (від 06.11.2025 20:15)
+📅 Сьогодні (06.11.2025):
 ...
 ```
 
@@ -130,6 +154,7 @@ WorkingDirectory=/path/to/bot
 Environment="TELEGRAM_BOT_TOKEN=your_token"
 Environment="TELEGRAM_CHANNEL_ID=@yourchannel"
 Environment="GROUP_NUMBER=1.1"
+Environment = "FORCE_SEND=false"
 ExecStart=/usr/bin/python3 power_outage_bot.py
 Restart=always
 RestartSec=10
@@ -164,6 +189,7 @@ COPY power_outage_bot.py .
 ENV TELEGRAM_BOT_TOKEN=""
 ENV TELEGRAM_CHANNEL_ID=""
 ENV GROUP_NUMBER="1.1"
+ENV FORCE_SEND="false"
 
 CMD ["python", "power_outage_bot.py"]
 ```
@@ -179,6 +205,7 @@ docker run -d \
   -e TELEGRAM_BOT_TOKEN='your_token' \
   -e TELEGRAM_CHANNEL_ID='@yourchannel' \
   -e GROUP_NUMBER='1.1' \
+  -e FORCE_SEND='false' \
   -v $(pwd)/outage_state.json:/app/outage_state.json \
   power-outage-bot
 ```
@@ -192,8 +219,9 @@ Create a batch file `run_bot.bat`:
 set TELEGRAM_BOT_TOKEN=your_token
 set TELEGRAM_CHANNEL_ID=@yourchannel
 set GROUP_NUMBER=1.1
+set FORCE_SEND=false
 cd /d "C:\path\to\bot"
-python power_outage_bot.py
+python power_outage_bot_single.py
 ```
 
 Create a task in Task Scheduler:
@@ -248,16 +276,10 @@ python power_outage_bot.py >> bot.log 2>&1
 
 Data is fetched from: https://github.com/Baskerville42/outage-data-ua
 
-Updates every ~15 minutes from ДТЕК (Ukrainian energy provider).
+Updates every ~5 minutes (via GitHub Actions) from ДТЕК (Ukrainian energy provider).
 
 ## License
 
-Free to use and modify for personal and commercial purposes.
-
-## Support
-
-For issues or questions, create an issue in the repository.
-
----
+Free to use and modify for personal purposes.
 
 Made with ❤️ for Ukraine 🇺🇦
