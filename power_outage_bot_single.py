@@ -536,7 +536,7 @@ class PowerOutageMonitor:
             # Check for changes in today's schedule
             if prev_state.get('today', {}).get('outages') != today_outages:
                 has_changes = True
-                logger.info("Changes detected in today's schedule")
+                logger.info('Changes detected in today\'s schedule')
 
             # Check for changes in tomorrow's schedule
             if tomorrow_outages is not None:
