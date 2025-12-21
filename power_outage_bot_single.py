@@ -230,23 +230,14 @@ class PowerOutageMonitor:
             float: The calculated duration in hours.
         """
 
-        # noinspection PyBroadException
         try:
             start, end = time_range.split('-')
             start_h, start_m = map(int, start.split(':'))
             end_h, end_m = map(int, end.split(':'))
-
-            start_total = start_h + start_m / 60
-            end_total = end_h + end_m / 60
-
-            # Handle case where the end time is 24:00 (midnight)
-            if end_h == 24:
-                end_total = 24
-
-            duration = end_total - start_total
-            return duration
-        except:
-            return 0
+        except ValueError:
+            return 0.0
+        start_total, end_total = start_h + start_m / 60, (24 if end_h == 24 else end_h + end_m / 60)
+        return max(0.0, end_total - start_total)
 
     def calculate_total_duration(self, outages: List[str]) -> float:
         """
