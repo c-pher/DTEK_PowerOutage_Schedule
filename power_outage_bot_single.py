@@ -1,5 +1,4 @@
 __author__ = 'Andrey Komissarov'
-__date__ = '06.11.2025'
 
 """
 Kyiv Power Outage Monitoring Telegram Bot
@@ -11,6 +10,7 @@ import json
 import os
 import sys
 import time
+from contextlib import suppress
 from datetime import datetime
 from typing import Optional, Dict, List
 
@@ -132,14 +132,10 @@ class PowerOutageMonitor:
             occurs.
         """
 
-        try:
-            if os.path.exists(self.state_file):
-                with open(self.state_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            return {}
-        except Exception as e:
-            logger.error(f'Error loading state: {e}')
-            return {}
+        with suppress(FileNotFoundError):
+            with open(self.state_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {}
 
     def save_state(self, state: Dict):
         """
