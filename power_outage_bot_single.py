@@ -274,35 +274,24 @@ class PowerOutageMonitor:
     @staticmethod
     def format_duration(hours: float) -> str:
         """
-        Formats the duration given in hours into a string representing the duration
-        in Ukrainian language using hours and/or minutes. This method provides
-        localized representation of time intervals based on varying conditions.
+        Formats a given duration in hours into a string representation.
+
+        The method takes a floating-point number representing hours and returns
+        a string containing the formatted duration. If the number of hours is an
+        integer, it is returned as an integer string followed by "год". If the number
+        has a decimal part, the decimal point is replaced with a comma for formatting.
 
         Args:
-            hours: Floating-point value representing the duration in hours.
-                   It can be fractional or an integer.
+            hours (float): The duration in hours to format.
 
         Returns:
-            A string formatted to represent the duration in the Ukrainian language.
-            For instance, durations can be expressed as "30 хв" for 0.5 hours,
-            "1 год" for 1 hour, "X год Y хв" for mixed hours and minutes, or only
-            hours or minutes if applicable.
+            str: A string representing the formatted duration in hours.
         """
 
-        match (hours == 0.5, hours == 1, hours < 1, hours == int(hours)):
-            case (True, _, _, _):
-                return '30 хв'
-            case (_, True, _, _):
-                return '1 год'
-            case (_, _, True, _):
-                minutes = int(hours * 60)
-                return f'{minutes} хв'
-            case (_, _, _, True):
-                return f'{int(hours)} год'
-            case _:
-                whole_hours = int(hours)
-                minutes = int((hours - whole_hours) * 60)
-                return f'{whole_hours} год {minutes} хв'
+        if hours == int(hours):
+            return f'{int(hours)} год'
+
+        return f'{hours} год'
 
     # noinspection PyUnresolvedReferences
     def merge_continuous_periods(self, outages: List[str]) -> List[str]:
@@ -368,7 +357,7 @@ class PowerOutageMonitor:
 
     def format_message(self, today_outages: List[str], tomorrow_outages: Optional[List[str]],
                        today_date: str, tomorrow_date: str = None,
-                       last_updated: str = None, is_update: bool = False) -> str:
+                       last_updated: str = None, is_update: bool = False) -> str | None:
         """
         Formats a message detailing the outage schedule for today and tomorrow, optionally with an update indicator.
 
