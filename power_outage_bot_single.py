@@ -13,6 +13,7 @@ import time
 from contextlib import suppress
 from datetime import datetime
 from typing import Optional, Dict, List
+from zoneinfo import ZoneInfo
 
 import aiohttp
 from loguru import logger
@@ -442,7 +443,8 @@ class PowerOutageMonitor:
             str: A human-readable date string in the format 'dd.mm.yyyy'.
         """
 
-        return datetime.fromtimestamp(timestamp).strftime('%d.%m.%Y')
+        KYIV = ZoneInfo('Europe/Kyiv')
+        return datetime.fromtimestamp(timestamp, tz=KYIV).strftime('%d.%m.%Y')
 
     async def check_and_notify(self):
         """
