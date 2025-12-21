@@ -1,16 +1,13 @@
 __author__ = 'Andrey Komissarov'
 
-"""
-Kyiv Power Outage Monitoring Telegram Bot
-Monitors power outage schedules and posts updates to a Telegram channel
-"""
-
 import asyncio
 import json
 import os
+import re
 import sys
 import time
 from contextlib import suppress
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Dict, List
 from zoneinfo import ZoneInfo
@@ -24,7 +21,7 @@ from telegram.error import TelegramError
 log_file_name = 'bot.log'
 log_path = f'./logs/{log_file_name}'
 fmt = '<green>{time: YYYY-MM-DD at HH:mm:ss.SSSS}</> | <lvl>{level: <7}</> | {function}:{line} | {message}'
-config = {
+logger_config = {
     'handlers': [
         {
             'sink': sys.stdout,
@@ -44,33 +41,52 @@ config = {
         },
     ],
 }
-logger.configure(**config)
+logger.configure(**logger_config)
+
+
+@dataclass(frozen=True)
+class Config:
+    token: str
+    chat_id: str
+    group_number: str
+
+    @property
+    def group_key(self) -> str:
+        return f'GPV{self.group_number}'
+
+    def validate(self):
+        if self.token == 'YOUR_BOT_TOKEN_HERE':
+            raise ValueError('TELEGRAM_BOT_TOKEN is not set')
+        if not re.fullmatch(r'\d\.\d', self.group_number):
+            raise ValueError('GROUP_NUMBER must look like 1.1, 2.2, ...')
+
+    @staticmethod
+    def from_env() -> 'Config':
+        cfg = Config(
+            token=os.getenv('TELEGRAM_BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE'),
+            chat_id=os.getenv('TELEGRAM_CHANNEL_ID', '@yourchannel'),
+            group_number=os.getenv('GROUP_NUMBER', '2.2'),
+        )
+        cfg.validate()
+        return cfg
 
 
 class PowerOutageMonitor:
-    def __init__(self, bot_token: str, channel_id: str, group_number: str):
+    def __init__(self, config: Config):
         """
         Initialize the power outage monitor
-
-        Args:
-            bot_token: Telegram bot token from @BotFather
-            channel_id: Telegram channel ID (e.g., @yourchannel or -1001234567890)
-            group_number: Group to monitor (e.g., '1.1', '2.2', etc.)
         """
 
-        self.bot = Bot(token=bot_token)
-        self.channel_id = channel_id
-        self.group_number = group_number
+        self.config = config
+        self.bot = Bot(token=config.token)
 
-        self.group_key = f'GPV{self.group_number}'
-        self.group_display = f'Черга {self.group_number}'
-
+        self.group_display = f'Черга {config.group_number}'
         self.data_url = 'https://raw.githubusercontent.com/Baskerville42/outage-data-ua/refs/heads/main/data/kyiv.json'
         self.state_file = 'outage_state.json'
 
         logger.info('=' * 60)
         logger.info(f'Bot started for group {self.group_display}')
-        logger.info(f'Posting to channel: {self.channel_id[:5]}...')
+        logger.info(f'Posting to channel: {self.config.chat_id[:5]}...')
         logger.info('=' * 60)
 
     async def fetch_data(self) -> Optional[Dict]:
@@ -111,7 +127,7 @@ class PowerOutageMonitor:
             str: A formatted URL string pointing to the photo resource.
         """
 
-        group_number_with_dash = self.group_number.replace('.', '-')
+        group_number_with_dash = self.config.group_number.replace('.', '-')
         photo_url = (f'https://raw.githubusercontent.com/Baskerville42/outage-data-ua/refs/heads/main/images/kyiv/'
                      f'gpv-{group_number_with_dash}-emergency.png')
 
@@ -419,7 +435,7 @@ class PowerOutageMonitor:
 
         try:
             await self.bot.send_photo(
-                chat_id=self.channel_id,
+                chat_id=self.config.chat_id,
                 photo=photo_url_no_cache,
                 caption=message,
                 parse_mode='HTML'
@@ -443,8 +459,8 @@ class PowerOutageMonitor:
             str: A human-readable date string in the format 'dd.mm.yyyy'.
         """
 
-        KYIV = ZoneInfo('Europe/Kyiv')
-        return datetime.fromtimestamp(timestamp, tz=KYIV).strftime('%d.%m.%Y')
+        kyiv_zone = ZoneInfo('Europe/Kyiv')
+        return datetime.fromtimestamp(timestamp, tz=kyiv_zone).strftime('%d.%m.%Y')
 
     async def check_and_notify(self):
         """
@@ -483,7 +499,7 @@ class PowerOutageMonitor:
         timestamps = sorted([int(ts) for ts in fact_data.keys()])
 
         # Find today and tomorrow data
-        today_data = fact_data.get(str(today_timestamp), {}).get(self.group_key)
+        today_data = fact_data.get(str(today_timestamp), {}).get(self.config.group_key)
         tomorrow_timestamp = None
         tomorrow_data = None
 
@@ -491,11 +507,11 @@ class PowerOutageMonitor:
             for ts in timestamps:
                 if ts > today_timestamp:
                     tomorrow_timestamp = ts
-                    tomorrow_data = fact_data.get(str(ts), {}).get(self.group_key)
+                    tomorrow_data = fact_data.get(str(ts), {}).get(self.config.group_key)
                     break
 
         if not today_data:
-            logger.warning(f'No data found for {self.group_key}')
+            logger.warning(f'No data found for {self.config.group_key}')
             return
 
         # Parse schedules
@@ -574,14 +590,11 @@ class PowerOutageMonitor:
 async def main():
     """Main function to run the bot"""
 
-    # Get configuration from environment variables or use defaults
-    BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE')
-    CHANNEL_ID = os.getenv('TELEGRAM_CHANNEL_ID', '@yourchannel')
-    GROUP_NUMBER = os.getenv('GROUP_NUMBER', '2.2')
-
-    # Validate configuration
-    if BOT_TOKEN == 'YOUR_BOT_TOKEN_HERE':
-        logger.error('Please set TELEGRAM_BOT_TOKEN environment variable')
+    try:
+        # Load and validate configuration
+        cfg = Config.from_env()
+    except ValueError as err:
+        logger.error(f'Please set TELEGRAM_BOT_TOKEN environment variable. {err}')
         print('\nUsage:')
         print('1. Get bot token from @BotFather on Telegram')
         print('2. Set environment variables:')
@@ -592,7 +605,7 @@ async def main():
         return
 
     # Create and run a monitor
-    monitor = PowerOutageMonitor(BOT_TOKEN, CHANNEL_ID, GROUP_NUMBER)
+    monitor = PowerOutageMonitor(cfg)
 
     try:
         await monitor.check_and_notify()
